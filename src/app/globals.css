@@ -121,10 +121,111 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html.dark {
+    color-scheme: dark;
+  }
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .dark .bg-white {
+    background-color: rgb(15 23 42) !important;
+  }
+
+  .dark .bg-white\/90 {
+    background-color: rgb(15 23 42 / 0.92) !important;
+  }
+
+  .dark .bg-gray-50 {
+    background-color: rgb(2 6 23) !important;
+  }
+
+  .dark .bg-gray-100 {
+    background-color: rgb(15 23 42 / 0.75) !important;
+  }
+
+  .dark .border-gray-100,
+  .dark .border-gray-200,
+  .dark .border-gray-300 {
+    border-color: rgb(30 41 59) !important;
+  }
+
+  .dark .text-gray-900 {
+    color: rgb(248 250 252) !important;
+  }
+
+  .dark .text-gray-800 {
+    color: rgb(226 232 240) !important;
+  }
+
+  .dark .text-gray-700 {
+    color: rgb(203 213 225) !important;
+  }
+
+  .dark .text-gray-600 {
+    color: rgb(148 163 184) !important;
+  }
+
+  .dark .text-gray-500 {
+    color: rgb(148 163 184) !important;
+  }
+
+  .dark .text-gray-400 {
+    color: rgb(100 116 139) !important;
+  }
+
+  .dark .placeholder\:text-gray-400::placeholder {
+    color: rgb(100 116 139) !important;
+  }
+
+  .dark .hover\:bg-gray-50:hover,
+  .dark .hover\:bg-gray-100:hover {
+    background-color: rgb(30 41 59) !important;
+  }
+
+  .dark .hover\:text-gray-900:hover {
+    color: rgb(248 250 252) !important;
+  }
+
+  .dark .bg-indigo-50 {
+    background-color: rgb(99 102 241 / 0.2) !important;
+  }
+
+  .dark .text-indigo-600 {
+    color: rgb(165 180 252) !important;
+  }
+
+  .dark .hover\:text-indigo-500:hover,
+  .dark .hover\:text-indigo-600:hover {
+    color: rgb(199 210 254) !important;
+  }
+
+  .dark .bg-emerald-50 {
+    background-color: rgb(6 78 59 / 0.25) !important;
+  }
+
+  .dark .bg-amber-50 {
+    background-color: rgb(120 53 15 / 0.25) !important;
+  }
+
+  .dark .bg-red-50 {
+    background-color: rgb(127 29 29 / 0.25) !important;
+  }
+
+  .dark .text-emerald-600 {
+    color: rgb(52 211 153) !important;
+  }
+
+  .dark .text-amber-600 {
+    color: rgb(251 191 36) !important;
+  }
+
+  .dark .text-red-600 {
+    color: rgb(248 113 113) !important;
   }
 }
