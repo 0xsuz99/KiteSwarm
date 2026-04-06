@@ -163,7 +163,7 @@ export default function AgentsPage() {
       </div>
 
       <Card className="bg-white border-gray-200 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-sky-500/10 via-indigo-500/5 to-white dark:from-slate-800/70 dark:via-slate-900 dark:to-slate-900">
+        <CardHeader className="bg-gradient-to-r from-sky-500/10 via-indigo-500/5 to-white">
           <div>
             <CardTitle className="text-gray-900 text-lg">
               Featured Agent Presets

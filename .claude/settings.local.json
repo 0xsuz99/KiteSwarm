@@ -15,7 +15,9 @@
       "Bash(ls src/app/\\\\\\(dashboard\\\\\\)/ -R)",
       "Bash(npm run:*)",
       "Bash(npx tsc:*)",
-      "Bash(wc -l src/app/\\\\\\(dashboard\\\\\\)/dashboard/page.tsx)"
+      "Bash(wc -l src/app/\\\\\\(dashboard\\\\\\)/dashboard/page.tsx)",
+      "Bash(npx next:*)",
+      "Bash(git add:*)"
     ]
   }
 }

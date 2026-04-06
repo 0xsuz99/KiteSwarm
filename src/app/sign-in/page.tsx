@@ -63,21 +63,43 @@ export default function SignInPage() {
     setMode("signin");
   }
 
+  function skipToDemo() {
+    router.replace("/dashboard");
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-      <Card className="w-full max-w-md bg-slate-900 border-slate-800">
+    <div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center p-6">
+      <Card className="w-full max-w-md bg-white border-gray-200">
         <CardHeader>
-          <CardTitle className="text-white text-2xl">KiteSwarm Auth</CardTitle>
+          <CardTitle className="text-gray-900 text-2xl">KiteSwarm Auth</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+            onClick={skipToDemo}
+          >
+            Skip to Demo (no sign-in required)
+          </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-400">Or sign in</span>
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <Button
               type="button"
               variant={mode === "signin" ? "default" : "outline"}
               className={
                 mode === "signin"
-                  ? "flex-1 bg-indigo-600 hover:bg-indigo-500 text-white"
-                  : "flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                  ? "flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  : "flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
               }
               onClick={() => setMode("signin")}
             >
@@ -88,8 +110,8 @@ export default function SignInPage() {
               variant={mode === "signup" ? "default" : "outline"}
               className={
                 mode === "signup"
-                  ? "flex-1 bg-indigo-600 hover:bg-indigo-500 text-white"
-                  : "flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
+                  ? "flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  : "flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
               }
               onClick={() => setMode("signup")}
             >
@@ -99,7 +121,7 @@ export default function SignInPage() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-300">
+              <Label htmlFor="email" className="text-gray-700">
                 Email
               </Label>
               <Input
@@ -108,12 +130,12 @@ export default function SignInPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white border-gray-300 text-gray-900"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-300">
+              <Label htmlFor="password" className="text-gray-700">
                 Password
               </Label>
               <Input
@@ -123,17 +145,17 @@ export default function SignInPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 required
                 minLength={6}
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white border-gray-300 text-gray-900"
               />
             </div>
 
-            {error ? <p className="text-sm text-red-400">{error}</p> : null}
-            {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
+            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
 
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               {loading
                 ? "Please wait..."

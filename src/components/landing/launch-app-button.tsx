@@ -18,7 +18,7 @@ export function LaunchAppButton() {
       type="button"
       onClick={handleLaunch}
       disabled={isLaunching}
-      className="inline-flex cursor-pointer items-center justify-center gap-2 h-12 px-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] disabled:bg-indigo-500 disabled:cursor-not-allowed transition-all text-white font-medium text-lg shadow-lg shadow-indigo-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+      className="inline-flex cursor-pointer items-center justify-center gap-2 h-12 px-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] disabled:bg-indigo-500 disabled:cursor-not-allowed transition-all text-white font-medium text-lg shadow-lg shadow-indigo-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
     >
       {isLaunching ? (
         <>

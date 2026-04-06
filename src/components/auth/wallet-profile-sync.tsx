@@ -3,9 +3,11 @@
 import { useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_NO_AUTH === "1";
+
 /**
  * Syncs the connected wallet address to the user profile.
- * Avoids concurrent Supabase auth calls that cause lock contention.
+ * Skipped entirely in demo mode (no Supabase auth).
  */
 export function WalletProfileSync() {
   const { isConnected, address } = useAccount();
@@ -13,14 +15,11 @@ export function WalletProfileSync() {
   const syncingRef = useRef(false);
 
   useEffect(() => {
-    if (!isConnected || !address || syncingRef.current) {
-      return;
-    }
+    if (isDemoMode) return;
+    if (!isConnected || !address || syncingRef.current) return;
 
     const normalized = address.toLowerCase();
-    if (lastSyncedRef.current === normalized) {
-      return;
-    }
+    if (lastSyncedRef.current === normalized) return;
 
     const sync = async () => {
       if (syncingRef.current) return;
@@ -37,13 +36,12 @@ export function WalletProfileSync() {
           lastSyncedRef.current = normalized;
         }
       } catch {
-        // Silently fail — will retry on next render
+        // Silently fail
       } finally {
         syncingRef.current = false;
       }
     };
 
-    // Debounce to avoid rapid-fire calls
     const timer = setTimeout(() => void sync(), 500);
     return () => clearTimeout(timer);
   }, [address, isConnected]);

@@ -6,19 +6,30 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
+const isDemoMode =
+  typeof window !== "undefined"
+    ? process.env.NEXT_PUBLIC_DEMO_NO_AUTH === "1"
+    : false;
+
 export function UserMenu() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (isDemoMode) return;
+
     let mounted = true;
     const supabase = createClient();
 
     const init = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (mounted) {
-        setUser(data.user ?? null);
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (mounted) {
+          setUser(data.user ?? null);
+        }
+      } catch {
+        // Silently handle auth errors
       }
     };
     void init();
@@ -40,6 +51,14 @@ export function UserMenu() {
     setLoading(false);
     router.replace("/sign-in");
     router.refresh();
+  }
+
+  if (isDemoMode) {
+    return (
+      <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full border border-indigo-200">
+        Demo Mode
+      </span>
+    );
   }
 
   if (!user) {

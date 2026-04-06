@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -35,10 +35,10 @@ type ActivityEntry = {
 };
 
 const statusStyles: Record<ActivityStatus, string> = {
-  success: "bg-emerald-500/20 text-emerald-400 border-0",
-  failed: "bg-red-500/20 text-red-400 border-0",
-  pending: "bg-amber-500/20 text-amber-400 border-0",
-  executing: "bg-indigo-500/20 text-indigo-400 border-0",
+  success: "bg-emerald-50 text-emerald-700 border-0",
+  failed: "bg-red-50 text-red-700 border-0",
+  pending: "bg-amber-50 text-amber-700 border-0",
+  executing: "bg-indigo-50 text-indigo-700 border-0",
 };
 
 function truncateHash(hash: string): string {
@@ -122,56 +122,56 @@ export default function ActivityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Activity Feed</h1>
-        <p className="text-slate-400 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-gray-900">Activity Feed</h1>
+        <p className="text-gray-500 text-sm mt-1">
           Global activity log across all agents
         </p>
       </div>
 
-      {loading ? <p className="text-slate-400 text-sm">Loading activity...</p> : null}
-      {error ? <p className="text-red-400 text-sm">{error}</p> : null}
+      {loading ? <p className="text-gray-500 text-sm">Loading activity...</p> : null}
+      {error ? <p className="text-red-600 text-sm">{error}</p> : null}
       {empty ? (
-        <Card className="bg-slate-900 border-slate-800">
-          <CardContent className="pt-6 text-sm text-slate-400">
+        <Card className="bg-white border-gray-200">
+          <CardContent className="pt-6 text-sm text-gray-500">
             No executions yet.
           </CardContent>
         </Card>
       ) : null}
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-white border-gray-200">
         <CardHeader>
-          <CardTitle className="text-white">All Transactions</CardTitle>
+          <CardTitle className="text-gray-900">All Transactions</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-800 hover:bg-transparent">
-                <TableHead className="text-slate-400">Time</TableHead>
-                <TableHead className="text-slate-400">Agent</TableHead>
-                <TableHead className="text-slate-400">Action Type</TableHead>
-                <TableHead className="text-slate-400">Description</TableHead>
-                <TableHead className="text-slate-400">Status</TableHead>
-                <TableHead className="text-slate-400">Tx Hash</TableHead>
+              <TableRow className="border-gray-100 hover:bg-transparent">
+                <TableHead className="text-gray-500">Time</TableHead>
+                <TableHead className="text-gray-500">Agent</TableHead>
+                <TableHead className="text-gray-500">Action Type</TableHead>
+                <TableHead className="text-gray-500">Description</TableHead>
+                <TableHead className="text-gray-500">Status</TableHead>
+                <TableHead className="text-gray-500">Tx Hash</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {activity.map((entry) => (
-                <TableRow key={entry.id} className="border-slate-800">
-                  <TableCell className="text-slate-300 text-sm whitespace-nowrap">
+                <TableRow key={entry.id} className="border-gray-100">
+                  <TableCell className="text-gray-700 text-sm whitespace-nowrap">
                     {new Date(entry.created_at).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-slate-300 text-sm">
+                  <TableCell className="text-gray-700 text-sm">
                     {entry.agent?.name ?? "Unknown Agent"}
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant="outline"
-                      className="border-indigo-500/30 text-indigo-400"
+                      className="border-indigo-200 text-indigo-600"
                     >
                       {entry.action_type}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-slate-300 text-sm max-w-[250px] truncate">
+                  <TableCell className="text-gray-700 text-sm max-w-[250px] truncate">
                     {entry.description ?? "-"}
                   </TableCell>
                   <TableCell>
@@ -183,13 +183,13 @@ export default function ActivityPage() {
                         href={`https://testnet.kitescan.ai/tx/${entry.tx_hash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-400 hover:text-indigo-300 text-sm flex items-center gap-1"
+                        className="text-indigo-600 hover:text-indigo-500 text-sm flex items-center gap-1"
                       >
                         {truncateHash(entry.tx_hash)}
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     ) : (
-                      <span className="text-slate-500 text-sm">-</span>
+                      <span className="text-gray-400 text-sm">-</span>
                     )}
                   </TableCell>
                 </TableRow>

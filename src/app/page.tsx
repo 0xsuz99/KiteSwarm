@@ -42,7 +42,7 @@ const flow = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-white via-indigo-50/30 to-white text-gray-900">
       {/* Hero */}
       <div className="flex flex-col items-center justify-center px-6 pt-32 pb-20">
         <div className="flex items-center gap-3 mb-6">
