@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Bot, Shield, Zap } from "lucide-react";
+import { LaunchAppButton } from "@/components/landing/launch-app-button";
 
 const features = [
   {
@@ -22,9 +22,27 @@ const features = [
   },
 ];
 
+const flow = [
+  {
+    title: "1. Connect & Create",
+    description:
+      "Connect your wallet, create an agent, and configure strategy plus spending constraints.",
+  },
+  {
+    title: "2. Fund & Activate",
+    description:
+      "Fund the agent vault with KITE or tracked ERC-20 tokens, then activate autonomous execution.",
+  },
+  {
+    title: "3. Verify & Withdraw",
+    description:
+      "Monitor live logs, verify on-chain attestations, and withdraw funds back to your wallet.",
+  },
+];
+
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-indigo-50/30 to-white text-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-gray-900">
       {/* Hero */}
       <div className="flex flex-col items-center justify-center px-6 pt-32 pb-20">
         <div className="flex items-center gap-3 mb-6">
@@ -33,15 +51,21 @@ export default function LandingPage() {
           </div>
           <h1 className="text-5xl font-bold tracking-tight text-gray-900">KiteSwarm</h1>
         </div>
-        <p className="text-xl text-gray-500 text-center max-w-xl mb-10">
+        <p className="text-xl text-gray-700 text-center max-w-xl mb-10">
           Autonomous Multi-Agent DeFi Portfolio Manager on Kite AI
         </p>
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center justify-center h-12 px-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-medium text-lg shadow-lg shadow-indigo-200"
-        >
-          Launch App
-        </Link>
+        <LaunchAppButton />
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs text-indigo-600">
+            Kite Testnet
+          </span>
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-600">
+            On-Chain Attestations
+          </span>
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-600">
+            Autonomous Agents
+          </span>
+        </div>
       </div>
 
       {/* Features */}
@@ -63,6 +87,21 @@ export default function LandingPage() {
               </p>
             </div>
           ))}
+        </div>
+
+        <div className="mt-10 rounded-xl border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-gray-900">How KiteSwarm Works</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            A simple flow built for fast, judge-friendly demos.
+          </p>
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {flow.map((step) => (
+              <div key={step.title} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-gray-900">{step.title}</p>
+                <p className="mt-2 text-xs leading-relaxed text-gray-500">{step.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

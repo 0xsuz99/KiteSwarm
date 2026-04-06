@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 
 type ActivityRow = {
   id: string;
@@ -38,6 +39,7 @@ type ActivityJoinRow = {
 
 export async function GET(request: Request) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -51,16 +53,28 @@ export async function GET(request: Request) {
 
     const supabase = createServiceClient();
 
-    const { data: agents, error: agentError } = await supabase
-      .from("agents")
-      .select("id")
-      .eq("user_id", user.id);
+    let agentIds: string[] = [];
 
-    if (agentError) {
-      return NextResponse.json({ error: agentError.message }, { status: 500 });
+    if (demoNoAuth) {
+      const { data: demoAgents, error: demoAgentError } = await supabase
+        .from("agents")
+        .select("id");
+      if (demoAgentError) {
+        return NextResponse.json({ error: demoAgentError.message }, { status: 500 });
+      }
+      agentIds = (demoAgents ?? []).map((agent) => agent.id);
+    } else {
+      const { data: agents, error: agentError } = await supabase
+        .from("agents")
+        .select("id")
+        .eq("user_id", user.id);
+
+      if (agentError) {
+        return NextResponse.json({ error: agentError.message }, { status: 500 });
+      }
+      agentIds = (agents ?? []).map((agent) => agent.id);
     }
 
-    const agentIds = (agents ?? []).map((agent) => agent.id);
     if (agentIds.length === 0) {
       return NextResponse.json({ activity: [] });
     }

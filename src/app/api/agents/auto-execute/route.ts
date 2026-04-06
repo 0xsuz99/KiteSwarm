@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { demoActorId, isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 import { executeAgentStrategy } from "@/lib/execute-agent-strategy";
 import type { Agent, ExecutionLog, Strategy } from "@/types/database";
 
@@ -72,6 +73,7 @@ function resolveStrategyIntervalSeconds(strategy: Strategy, fastMode: boolean): 
 
 export async function POST(request: Request) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -95,14 +97,19 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient();
 
-    const { data: activeAgentData, error: activeAgentError } = await supabase
+    let activeAgentsQuery = supabase
       .from("agents")
       .select("*")
-      .eq("user_id", user.id)
       .eq("status", "active")
       .not("strategy_id", "is", null)
       .order("updated_at", { ascending: true })
       .limit(maxAgentsPerTick);
+
+    if (!demoNoAuth) {
+      activeAgentsQuery = activeAgentsQuery.eq("user_id", user.id);
+    }
+
+    const { data: activeAgentData, error: activeAgentError } = await activeAgentsQuery;
     const activeAgents = (activeAgentData ?? []) as Agent[];
 
     if (activeAgentError) {
@@ -204,7 +211,7 @@ export async function POST(request: Request) {
       const execution = await executeAgentStrategy({
         agent,
         strategy,
-        triggeredBy: user.id,
+        triggeredBy: demoNoAuth ? demoActorId() : user.id,
         trigger: "auto",
       });
 

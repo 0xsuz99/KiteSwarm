@@ -33,7 +33,7 @@ export interface Database {
       agents: {
         Row: {
           id: string;
-          user_id: string;
+          user_id: string | null;
           name: string;
           description: string | null;
           aa_wallet_address: string | null;
@@ -47,7 +47,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id?: string | null;
           name: string;
           description?: string | null;
           aa_wallet_address?: string | null;
@@ -61,7 +61,7 @@ export interface Database {
         };
         Update: {
           id?: string;
-          user_id?: string;
+          user_id?: string | null;
           name?: string;
           description?: string | null;
           aa_wallet_address?: string | null;

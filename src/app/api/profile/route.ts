@@ -1,10 +1,22 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 
 export async function GET() {
   try {
+    if (isDemoNoAuthMode()) {
+      return NextResponse.json({
+        profile: {
+          id: "demo-no-auth",
+          wallet_address: null,
+          kite_passport_agent_id: null,
+          demo_no_auth: true,
+        },
+      });
+    }
+
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -33,6 +45,24 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    if (isDemoNoAuthMode()) {
+      const body = await request.json();
+      return NextResponse.json({
+        profile: {
+          id: "demo-no-auth",
+          wallet_address:
+            typeof body.wallet_address === "string"
+              ? body.wallet_address.toLowerCase()
+              : null,
+          kite_passport_agent_id:
+            typeof body.kite_passport_agent_id === "string"
+              ? body.kite_passport_agent_id
+              : null,
+          demo_no_auth: true,
+        },
+      });
+    }
+
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -126,4 +156,3 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
-

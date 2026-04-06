@@ -6,6 +6,14 @@ const DEFAULT_POLL_MS = 45_000;
 const FAST_DEMO_POLL_MS = 7_000;
 const FAST_DEMO_STORAGE_KEY = "kiteswarm:fast-demo";
 
+function fastAutopilotDefaultEnabled() {
+  const raw = process.env.NEXT_PUBLIC_DEFAULT_FAST_AUTOPILOT;
+  if (!raw) {
+    return true;
+  }
+  return !["0", "false", "no", "off"].includes(raw.trim().toLowerCase());
+}
+
 function resolvePollMs() {
   const raw = process.env.NEXT_PUBLIC_AGENT_AUTO_POLL_MS;
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
@@ -17,9 +25,16 @@ function resolvePollMs() {
 
 function readFastDemoFlag() {
   if (typeof window === "undefined") {
+    return fastAutopilotDefaultEnabled();
+  }
+  const stored = window.localStorage.getItem(FAST_DEMO_STORAGE_KEY);
+  if (stored === "1") {
+    return true;
+  }
+  if (stored === "0") {
     return false;
   }
-  return window.localStorage.getItem(FAST_DEMO_STORAGE_KEY) === "1";
+  return fastAutopilotDefaultEnabled();
 }
 
 export function AutoExecutor() {

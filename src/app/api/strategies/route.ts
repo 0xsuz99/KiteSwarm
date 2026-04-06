@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 import type { StrategyInsert } from "@/types/database";
 
 const DEFAULT_STRATEGY_TEMPLATES: StrategyInsert[] = [
@@ -106,6 +107,7 @@ async function ensureTemplateStrategies() {
 
 export async function GET() {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -115,12 +117,17 @@ export async function GET() {
 
     const supabase = createServiceClient();
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("strategies")
       .select("*")
-      .or(`user_id.eq.${user.id},is_template.eq.true`)
       .order("is_template", { ascending: false })
       .order("created_at", { ascending: false });
+
+    if (!demoNoAuth) {
+      query = query.or(`user_id.eq.${user.id},is_template.eq.true`);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -138,6 +145,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -168,7 +176,7 @@ export async function POST(request: NextRequest) {
     }
 
     const strategyData: StrategyInsert = {
-      user_id: user.id,
+      user_id: demoNoAuth ? null : user.id,
       name,
       description: description ?? null,
       type,

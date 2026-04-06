@@ -5,6 +5,7 @@ import { getAgentAAWalletAddress } from "@/lib/kite-aa";
 import { generateAgentSigner } from "@/lib/agent-signer";
 import { requireUser } from "@/lib/supabase/require-user";
 import { DECISION_LOG_ABI } from "@/lib/contracts/decision-log-abi";
+import { demoActorId, isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 import type { AgentInsert } from "@/types/database";
 
 function toConfigObject(value: unknown) {
@@ -69,6 +70,7 @@ async function attestAgentCreationOnChain(params: {
 
 export async function GET() {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -76,11 +78,15 @@ export async function GET() {
 
     const supabase = createServiceClient();
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("agents")
       .select("*, strategies(*)")
-      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
+    if (!demoNoAuth) {
+      query = query.eq("user_id", user.id);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -98,6 +104,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -144,7 +151,7 @@ export async function POST(request: NextRequest) {
     };
 
     const agentData: AgentInsert = {
-      user_id: user.id,
+      user_id: demoNoAuth ? null : user.id,
       name,
       description: description ?? null,
       strategy_id: strategy_id ?? null,
@@ -167,7 +174,7 @@ export async function POST(request: NextRequest) {
     }
 
     const attestation = await attestAgentCreationOnChain({
-      userId: user.id,
+      userId: demoNoAuth ? demoActorId() : user.id,
       agentId: data.id,
       aaWalletAddress: data.aa_wallet_address,
       payload: {

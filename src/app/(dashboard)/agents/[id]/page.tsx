@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { getExplorerAddressUrl, getExplorerTxUrl, kiteTestnet } from "@/lib/kite-chain";
 import { getKiteTokensByChainId, type KiteToken } from "@/lib/kite-tokens";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import {
   LineChart,
   Line,
@@ -422,7 +423,6 @@ export default function AgentDetailPage() {
   const [selectedCommonFundingToken, setSelectedCommonFundingToken] = useState("custom");
   const [tokenAddress, setTokenAddress] = useState("");
   const [tokenAmount, setTokenAmount] = useState("1");
-  const [tokenDecimals, setTokenDecimals] = useState("18");
   const [tokenFundingTxHash, setTokenFundingTxHash] = useState<`0x${string}` | null>(null);
   const [tokenWithdrawTxHash, setTokenWithdrawTxHash] = useState<`0x${string}` | null>(null);
   const [trackingPresetAddress, setTrackingPresetAddress] = useState("none");
@@ -511,6 +511,16 @@ export default function AgentDetailPage() {
     query: { enabled: Boolean(normalizedTokenAddress) },
   });
 
+  const resolvedTokenDecimals = useMemo(() => {
+    if (selectedCommonToken && typeof selectedCommonToken.decimals === "number") {
+      return selectedCommonToken.decimals;
+    }
+    if (typeof tokenDecimalsOnChain === "number") {
+      return tokenDecimalsOnChain;
+    }
+    return null;
+  }, [selectedCommonToken, tokenDecimalsOnChain]);
+
   const { data: walletBalance } = useBalance({
     address: connectedWallet,
     chainId: kiteTestnet.id,
@@ -566,88 +576,105 @@ export default function AgentDetailPage() {
     query: { enabled: Boolean(tokenWithdrawTxHash) },
   });
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [agentResponse, logsResponse, portfolioResponse, performanceResponse] = await Promise.all([
-        fetch(`/api/agents/${id}`, { credentials: "include", cache: "no-store" }),
-        fetch(`/api/agents/${id}/logs`, { credentials: "include", cache: "no-store" }),
-        fetch("/api/portfolio", { credentials: "include", cache: "no-store" }),
-        fetch(`/api/agents/${id}/performance`, {
-          credentials: "include",
-          cache: "no-store",
-        }),
-      ]);
-
-      const agentPayload = await agentResponse.json();
-      const logsPayload = await logsResponse.json();
-      const portfolioPayload = await portfolioResponse.json();
-      const performancePayload = await performanceResponse.json();
-
-      if (!agentResponse.ok) {
-        throw new Error(agentPayload.error ?? "Failed to load agent");
-      }
-      if (!logsResponse.ok) {
-        throw new Error(logsPayload.error ?? "Failed to load logs");
-      }
-      if (!portfolioResponse.ok) {
-        throw new Error(portfolioPayload.error ?? "Failed to load portfolio");
-      }
-      if (!performanceResponse.ok) {
-        throw new Error(performancePayload.error ?? "Failed to load performance");
-      }
-
-      setAgent((agentPayload.agent ?? null) as AgentRow | null);
-      setLogs((logsPayload.logs ?? []) as ExecutionLogRow[]);
-
-      const matched = ((portfolioPayload.agents ?? []) as PortfolioSummary[]).find(
-        (row) => row.id === id
-      );
-      setPortfolioAgent(matched ?? null);
-      setPerformancePoints((performancePayload.points ?? []) as PerformancePoint[]);
-      setPerformanceMetrics((performancePayload.metrics ?? null) as PerformanceMetrics | null);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load agent");
-    } finally {
-      setLoading(false);
+  const loadAgent = useCallback(async () => {
+    const response = await fetch(`/api/agents/${id}`, {
+      credentials: "include",
+      cache: "no-store",
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Failed to load agent");
     }
+    setAgent((payload.agent ?? null) as AgentRow | null);
   }, [id]);
 
+  const loadLogs = useCallback(async () => {
+    const response = await fetch(`/api/agents/${id}/logs`, {
+      credentials: "include",
+      cache: "no-store",
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Failed to load logs");
+    }
+    setLogs((payload.logs ?? []) as ExecutionLogRow[]);
+  }, [id]);
+
+  const loadPortfolioSummary = useCallback(async () => {
+    const response = await fetch("/api/portfolio", {
+      credentials: "include",
+      cache: "no-store",
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Failed to load portfolio");
+    }
+    const matched = ((payload.agents ?? []) as PortfolioSummary[]).find(
+      (row) => row.id === id
+    );
+    setPortfolioAgent(matched ?? null);
+  }, [id]);
+
+  const loadPerformance = useCallback(async () => {
+    const response = await fetch(`/api/agents/${id}/performance`, {
+      credentials: "include",
+      cache: "no-store",
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Failed to load performance");
+    }
+    setPerformancePoints((payload.points ?? []) as PerformancePoint[]);
+    setPerformanceMetrics((payload.metrics ?? null) as PerformanceMetrics | null);
+  }, [id]);
+
+  const load = useCallback(
+    async (options?: { showLoading?: boolean }) => {
+      const showLoading = options?.showLoading ?? false;
+      try {
+        if (showLoading) {
+          setLoading(true);
+        }
+        setError(null);
+        await Promise.all([loadAgent(), loadLogs(), loadPortfolioSummary(), loadPerformance()]);
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Failed to load agent");
+      } finally {
+        if (showLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [loadAgent, loadLogs, loadPerformance, loadPortfolioSummary]
+  );
+
   useEffect(() => {
-    void load();
+    void load({ showLoading: true });
   }, [load]);
 
   useEffect(() => {
     if (fundingConfirmed) {
-      void load();
+      void Promise.all([loadPortfolioSummary(), loadPerformance(), loadLogs()]).catch(() => {});
     }
-  }, [fundingConfirmed, load]);
+  }, [fundingConfirmed, loadLogs, loadPerformance, loadPortfolioSummary]);
 
   useEffect(() => {
     if (tokenFundingConfirmed) {
-      void load();
+      void Promise.all([loadPortfolioSummary(), loadPerformance(), loadLogs()]).catch(() => {});
     }
-  }, [tokenFundingConfirmed, load]);
+  }, [tokenFundingConfirmed, loadLogs, loadPerformance, loadPortfolioSummary]);
 
   useEffect(() => {
     if (withdrawConfirmed) {
-      void load();
+      void Promise.all([loadPortfolioSummary(), loadPerformance(), loadLogs()]).catch(() => {});
     }
-  }, [withdrawConfirmed, load]);
+  }, [withdrawConfirmed, loadLogs, loadPerformance, loadPortfolioSummary]);
 
   useEffect(() => {
     if (tokenWithdrawConfirmed) {
-      void load();
+      void Promise.all([loadPortfolioSummary(), loadPerformance(), loadLogs()]).catch(() => {});
     }
-  }, [tokenWithdrawConfirmed, load]);
-
-  useEffect(() => {
-    if (typeof tokenDecimalsOnChain === "number") {
-      setTokenDecimals(String(tokenDecimalsOnChain));
-    }
-  }, [tokenDecimalsOnChain]);
+  }, [tokenWithdrawConfirmed, loadLogs, loadPerformance, loadPortfolioSummary]);
 
   useEffect(() => {
     if (selectedCommonFundingToken === "custom") {
@@ -663,9 +690,6 @@ export default function AgentDetailPage() {
     }
 
     setTokenAddress(token.address);
-    if (typeof token.decimals === "number") {
-      setTokenDecimals(String(token.decimals));
-    }
   }, [commonTokens, selectedCommonFundingToken]);
 
   useEffect(() => {
@@ -677,14 +701,49 @@ export default function AgentDetailPage() {
 
   useEffect(() => {
     const handleAutoExecuted = () => {
-      void load();
+      void Promise.all([loadLogs(), loadPortfolioSummary(), loadPerformance()]).catch(() => {});
     };
 
     window.addEventListener("kiteswarm:auto-executed", handleAutoExecuted);
     return () => {
       window.removeEventListener("kiteswarm:auto-executed", handleAutoExecuted);
     };
-  }, [load]);
+  }, [loadLogs, loadPerformance, loadPortfolioSummary]);
+
+  useEffect(() => {
+    const supabase = createSupabaseClient();
+    const channel = supabase
+      .channel(`agent-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "execution_logs",
+          filter: `agent_id=eq.${id}`,
+        },
+        () => {
+          void loadLogs();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "portfolio_snapshots",
+          filter: `agent_id=eq.${id}`,
+        },
+        () => {
+          void Promise.all([loadPortfolioSummary(), loadPerformance()]).catch(() => {});
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [id, loadLogs, loadPerformance, loadPortfolioSummary]);
 
   async function updateStatus(nextStatus: AgentStatus) {
     if (!agent) {
@@ -841,7 +900,7 @@ export default function AgentDetailPage() {
 
       const decimals = resolveTokenDecimalsForTransfer();
       if (decimals === null || !Number.isFinite(decimals) || decimals < 0 || decimals > 30) {
-        setError("Enter valid token decimals (0-30).");
+        setError("Token decimals could not be resolved from chain metadata yet.");
         return;
       }
 
@@ -921,7 +980,7 @@ export default function AgentDetailPage() {
 
       const decimals = resolveTokenDecimalsForTransfer();
       if (decimals === null || !Number.isFinite(decimals) || decimals < 0 || decimals > 30) {
-        setError("Enter valid token decimals (0-30).");
+        setError("Token decimals could not be resolved from chain metadata yet.");
         return;
       }
 
@@ -1173,9 +1232,6 @@ export default function AgentDetailPage() {
                 <ExternalLink className="h-3 w-3" />
               </a>
             ) : null}
-            <p className="text-xs text-emerald-600 mt-1">
-              Autonomous mode: when this agent is active, execution runs automatically in background.
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1489,19 +1545,12 @@ export default function AgentDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="token-decimals" className="text-gray-700 text-xs">
-                  Token Decimals
+                <Label className="text-gray-700 text-xs">
+                  Token Decimals (Auto)
                 </Label>
-                <Input
-                  id="token-decimals"
-                  type="number"
-                  min={0}
-                  max={30}
-                  value={tokenDecimals}
-                  onChange={(event) => setTokenDecimals(event.target.value)}
-                  readOnly={!isCustomTokenInput}
-                  className="bg-white border-gray-300 text-gray-900"
-                />
+                <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  {resolvedTokenDecimals ?? "-"}
+                </div>
               </div>
             </div>
             <p className="text-xs text-gray-500">

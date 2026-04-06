@@ -6,11 +6,26 @@ import { Badge } from "@/components/ui/badge";
 
 const FAST_DEMO_STORAGE_KEY = "kiteswarm:fast-demo";
 
+function fastAutopilotDefaultEnabled() {
+  const raw = process.env.NEXT_PUBLIC_DEFAULT_FAST_AUTOPILOT;
+  if (!raw) {
+    return true;
+  }
+  return !["0", "false", "no", "off"].includes(raw.trim().toLowerCase());
+}
+
 function readFastDemoFlag() {
   if (typeof window === "undefined") {
+    return fastAutopilotDefaultEnabled();
+  }
+  const stored = window.localStorage.getItem(FAST_DEMO_STORAGE_KEY);
+  if (stored === "1") {
+    return true;
+  }
+  if (stored === "0") {
     return false;
   }
-  return window.localStorage.getItem(FAST_DEMO_STORAGE_KEY) === "1";
+  return fastAutopilotDefaultEnabled();
 }
 
 export function DemoModeToggle() {
@@ -32,7 +47,7 @@ export function DemoModeToggle() {
             : "bg-gray-100 text-gray-600 border-gray-200"
         }
       >
-        Fast Demo: {fastDemo ? "On" : "Off"}
+        Fast Autopilot: {fastDemo ? "On" : "Off"}
       </Badge>
       <Button
         type="button"
@@ -42,6 +57,9 @@ export function DemoModeToggle() {
       >
         {fastDemo ? "Disable" : "Enable"}
       </Button>
+      <span className="hidden xl:block text-[11px] text-gray-500">
+        Speeds up real execution cadence and on-chain attestations.
+      </span>
     </div>
   );
 }

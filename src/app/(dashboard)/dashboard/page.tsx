@@ -79,6 +79,13 @@ type PortfolioAgent = {
 type PortfolioResponse = {
   total_value_usd: number;
   agents: PortfolioAgent[];
+  series_by_agent?: Record<
+    string,
+    Array<{
+      snapshot_at: string;
+      total_value_usd: number;
+    }>
+  >;
 };
 
 type AgentApiRow = {
@@ -375,6 +382,9 @@ function SectionHeader({
 /* ================================================================== */
 
 export default function DashboardPage() {
+  const showLiveSimulation =
+    process.env.NEXT_PUBLIC_ENABLE_LIVE_SIMULATION === "true";
+
   /* ----- Wallet ----- */
   const { address } = useAccount();
   const { data: walletBalance } = useBalance({
@@ -422,6 +432,63 @@ export default function DashboardPage() {
       portfolio?.agents.filter((a) => a.status === "active").length ?? 0,
     [portfolio?.agents]
   );
+
+  const activeAgentChart = useMemo(() => {
+    const activePortfolioAgents = (portfolio?.agents ?? []).filter(
+      (entry) => entry.status === "active"
+    );
+    if (activePortfolioAgents.length === 0) {
+      return {
+        points: [] as Array<Record<string, number | string>>,
+        lines: [] as Array<{ key: string; name: string; color: string }>,
+      };
+    }
+
+    const rawSeries = portfolio?.series_by_agent ?? {};
+    const lineMeta = activePortfolioAgents.map((agent, index) => ({
+      id: agent.id,
+      key: `agent_${agent.id.replace(/-/g, "")}`,
+      name: agent.name,
+      color: lineColor(index),
+    }));
+
+    const timestampSet = new Set<string>();
+    for (const line of lineMeta) {
+      const rows = rawSeries[line.id] ?? [];
+      for (const row of rows) {
+        if (typeof row.snapshot_at === "string" && row.snapshot_at.length > 0) {
+          timestampSet.add(row.snapshot_at);
+        }
+      }
+    }
+
+    const timestamps = Array.from(timestampSet).sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime()
+    );
+
+    const points = timestamps.map((timestamp) => {
+      const point: Record<string, number | string> = {
+        time: new Date(timestamp).toLocaleTimeString(),
+      };
+      for (const line of lineMeta) {
+        const rows = rawSeries[line.id] ?? [];
+        const matched = rows.find((row) => row.snapshot_at === timestamp);
+        if (matched) {
+          point[line.key] = Number(matched.total_value_usd ?? 0);
+        }
+      }
+      return point;
+    });
+
+    return {
+      points,
+      lines: lineMeta.map((line) => ({
+        key: line.key,
+        name: line.name,
+        color: line.color,
+      })),
+    };
+  }, [portfolio]);
 
   const scenario = useMemo<Scenario>(
     () => ({
@@ -637,11 +704,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Unified view of your DeFi portfolio, agents, strategies, simulation,
-          and activity.
-        </p>
-        <p className="text-emerald-600 text-xs mt-1">
-          Autonomous engine is enabled. Active agents auto-run in the background.
+          Unified view of your DeFi portfolio, agents, and activity.
         </p>
       </div>
 
@@ -723,6 +786,62 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="bg-white border border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-gray-900">
+              Active Agents Performance
+            </CardTitle>
+            <CardDescription className="text-gray-500">
+              Snapshot-based value curves for all currently active agents.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="h-[320px]">
+            {activeAgentChart.lines.length > 0 && activeAgentChart.points.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={activeAgentChart.points}
+                  margin={{ left: 8, right: 8, top: 8, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="time" stroke="#9ca3af" tickLine={false} axisLine={false} />
+                  <YAxis
+                    stroke="#9ca3af"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `$${Math.round(Number(value)).toLocaleString()}`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 8,
+                    }}
+                    formatter={(value) =>
+                      formatUsd(typeof value === "number" ? value : Number(value ?? 0))
+                    }
+                  />
+                  <Legend />
+                  {activeAgentChart.lines.map((line) => (
+                    <Line
+                      key={line.key}
+                      type="monotone"
+                      dataKey={line.key}
+                      name={line.name}
+                      stroke={line.color}
+                      strokeWidth={2.3}
+                      dot={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
+                Activate agents and let at least one cycle run to populate this chart.
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       {/* ============================================================ */}
@@ -746,25 +865,15 @@ export default function DashboardPage() {
 
         {/* Featured presets */}
         <Card className="bg-white border border-gray-200 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 via-white to-white">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <CardTitle className="text-gray-900 text-lg">
-                  Featured Agent Presets
-                </CardTitle>
-                <CardDescription className="text-gray-500">
-                  Use curated starter agents. Unlock based on your connected
-                  wallet KITE balance on Kite testnet.
-                </CardDescription>
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-right min-w-[200px]">
-                <p className="text-xs text-gray-400">Connected Wallet KITE</p>
-                <p className="text-sm text-gray-900 mt-1">
-                  {walletBalance?.formatted
-                    ? `${Number(walletBalance.formatted).toFixed(4)} KITE`
-                    : "Connect wallet"}
-                </p>
-              </div>
+          <CardHeader className="bg-gradient-to-r from-indigo-50 via-white to-white dark:from-slate-800/70 dark:via-slate-900 dark:to-slate-900">
+            <div>
+              <CardTitle className="text-gray-900 text-lg">
+                Featured Agent Presets
+              </CardTitle>
+              <CardDescription className="text-gray-500">
+                Use curated starter agents. Unlock based on wallet KITE balance
+                on Kite testnet.
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="pt-6 grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -890,230 +999,226 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ============================================================ */}
-      {/*  SECTION 3 - Live Simulation                                  */}
-      {/* ============================================================ */}
-      <section className="space-y-4">
-        <SectionHeader
-          icon={Radio}
-          title="Live Economy Simulation"
-          description="Real-time stress simulation using your actual agent configurations"
-          action={
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                onClick={() => setIsRunning((r) => !r)}
-                disabled={simulationAgents.length === 0}
-              >
-                {isRunning ? (
-                  <>
-                    <Pause className="h-4 w-4 mr-2" />
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Run
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                onClick={() => {
-                  setIsRunning(false);
-                  initializeSimulation();
-                }}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset
-              </Button>
-            </div>
-          }
-        />
-
-        {/* Controls */}
-        <Card className="bg-white border border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-gray-900 text-lg">
-              Simulation Controls
-            </CardTitle>
-            <CardDescription className="text-gray-500">
-              Tune macro assumptions and watch how each agent reacts over time.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="horizon" className="text-gray-700 text-xs">
-                Horizon (days)
-              </Label>
-              <Input
-                id="horizon"
-                type="number"
-                value={horizonInput}
-                onChange={(e) => setHorizonInput(e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tick" className="text-gray-700 text-xs">
-                Tick speed (ms)
-              </Label>
-              <Input
-                id="tick"
-                type="number"
-                value={tickInput}
-                onChange={(e) => setTickInput(e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="drift" className="text-gray-700 text-xs">
-                Daily drift %
-              </Label>
-              <Input
-                id="drift"
-                type="number"
-                step="0.01"
-                value={driftInput}
-                onChange={(e) => setDriftInput(e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="volatility" className="text-gray-700 text-xs">
-                Daily volatility %
-              </Label>
-              <Input
-                id="volatility"
-                type="number"
-                step="0.1"
-                value={volatilityInput}
-                onChange={(e) => setVolatilityInput(e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="shock-day" className="text-gray-700 text-xs">
-                Shock day
-              </Label>
-              <Input
-                id="shock-day"
-                type="number"
-                value={shockDayInput}
-                onChange={(e) => setShockDayInput(e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="shock-impact"
-                className="text-gray-700 text-xs"
-              >
-                Shock impact %
-              </Label>
-              <Input
-                id="shock-impact"
-                type="number"
-                value={shockImpactInput}
-                onChange={(e) => setShockImpactInput(e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="seed" className="text-gray-700 text-xs">
-                Random seed
-              </Label>
-              <Input
-                id="seed"
-                type="number"
-                value={seedInput}
-                onChange={(e) => setSeedInput(e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-gray-700 text-xs">Live Progress</Label>
-              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                Day {currentDay} / {scenario.horizonDays}
+      {showLiveSimulation ? (
+        <section className="space-y-4">
+          <SectionHeader
+            icon={Radio}
+            title="Live Economy Simulation"
+            description="Real-time stress simulation using your actual agent configurations"
+            action={
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                  onClick={() => setIsRunning((r) => !r)}
+                  disabled={simulationAgents.length === 0}
+                >
+                  {isRunning ? (
+                    <>
+                      <Pause className="h-4 w-4 mr-2" />
+                      Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Run
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                  onClick={() => {
+                    setIsRunning(false);
+                    initializeSimulation();
+                  }}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            }
+          />
 
-        {/* Agent value cards */}
-        {!loading && simulationAgents.length === 0 ? (
           <Card className="bg-white border border-gray-200">
-            <CardContent className="pt-6 text-sm text-gray-500">
-              No agents found. Create at least one agent to run personalized
-              simulation.
+            <CardHeader>
+              <CardTitle className="text-gray-900 text-lg">
+                Simulation Controls
+              </CardTitle>
+              <CardDescription className="text-gray-500">
+                Tune macro assumptions and watch how each agent reacts over time.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="horizon" className="text-gray-700 text-xs">
+                  Horizon (days)
+                </Label>
+                <Input
+                  id="horizon"
+                  type="number"
+                  value={horizonInput}
+                  onChange={(e) => setHorizonInput(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tick" className="text-gray-700 text-xs">
+                  Tick speed (ms)
+                </Label>
+                <Input
+                  id="tick"
+                  type="number"
+                  value={tickInput}
+                  onChange={(e) => setTickInput(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="drift" className="text-gray-700 text-xs">
+                  Daily drift %
+                </Label>
+                <Input
+                  id="drift"
+                  type="number"
+                  step="0.01"
+                  value={driftInput}
+                  onChange={(e) => setDriftInput(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="volatility" className="text-gray-700 text-xs">
+                  Daily volatility %
+                </Label>
+                <Input
+                  id="volatility"
+                  type="number"
+                  step="0.1"
+                  value={volatilityInput}
+                  onChange={(e) => setVolatilityInput(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shock-day" className="text-gray-700 text-xs">
+                  Shock day
+                </Label>
+                <Input
+                  id="shock-day"
+                  type="number"
+                  value={shockDayInput}
+                  onChange={(e) => setShockDayInput(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="shock-impact"
+                  className="text-gray-700 text-xs"
+                >
+                  Shock impact %
+                </Label>
+                <Input
+                  id="shock-impact"
+                  type="number"
+                  value={shockImpactInput}
+                  onChange={(e) => setShockImpactInput(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="seed" className="text-gray-700 text-xs">
+                  Random seed
+                </Label>
+                <Input
+                  id="seed"
+                  type="number"
+                  value={seedInput}
+                  onChange={(e) => setSeedInput(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 text-xs">Live Progress</Label>
+                <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  Day {currentDay} / {scenario.horizonDays}
+                </div>
+              </div>
             </CardContent>
           </Card>
-        ) : null}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {liveStats.map((item, index) => (
-            <Card
-              key={item.key}
-              className="bg-white border border-gray-200"
-            >
-              <CardContent className="pt-6">
-                <div
-                  className="flex items-center gap-2 text-sm font-medium"
-                  style={{ color: lineColor(index) }}
-                >
-                  <Bot className="h-4 w-4" />
-                  {item.name}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {item.strategyName}
-                </p>
-                <p className="text-2xl text-gray-900 font-semibold mt-2">
-                  {formatUsd(item.value)}
-                </p>
-                <div className="flex items-center gap-1 mt-1 text-xs">
-                  <Activity className="h-3 w-3 text-gray-400" />
-                  <span
-                    className={
-                      item.returnPct >= 0
-                        ? "text-emerald-600"
-                        : "text-red-600"
-                    }
-                  >
-                    {item.returnPct >= 0 ? "+" : ""}
-                    {item.returnPct.toFixed(2)}%
-                  </span>
-                </div>
+          {!loading && simulationAgents.length === 0 ? (
+            <Card className="bg-white border border-gray-200">
+              <CardContent className="pt-6 text-sm text-gray-500">
+                No agents found. Create at least one agent to run personalized
+                simulation.
               </CardContent>
             </Card>
-          ))}
-        </div>
+          ) : null}
 
-        {/* Chart */}
-        <Card className="bg-white border border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-gray-900">
-              Real-time Agent Value Curves
-            </CardTitle>
-            <CardDescription className="text-gray-500">
-              Benchmark vs your agents under current scenario assumptions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-[420px]">
-            {history.length > 0 ? (
-              <ClientSimulationChart
-                points={history}
-                agents={simulationAgents}
-              />
-            ) : (
-              <div className="h-full rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
-                Create agents to begin simulation.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {liveStats.map((item, index) => (
+              <Card
+                key={item.key}
+                className="bg-white border border-gray-200"
+              >
+                <CardContent className="pt-6">
+                  <div
+                    className="flex items-center gap-2 text-sm font-medium"
+                    style={{ color: lineColor(index) }}
+                  >
+                    <Bot className="h-4 w-4" />
+                    {item.name}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {item.strategyName}
+                  </p>
+                  <p className="text-2xl text-gray-900 font-semibold mt-2">
+                    {formatUsd(item.value)}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1 text-xs">
+                    <Activity className="h-3 w-3 text-gray-400" />
+                    <span
+                      className={
+                        item.returnPct >= 0
+                          ? "text-emerald-600"
+                          : "text-red-600"
+                      }
+                    >
+                      {item.returnPct >= 0 ? "+" : ""}
+                      {item.returnPct.toFixed(2)}%
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="bg-white border border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-gray-900">
+                Real-time Agent Value Curves
+              </CardTitle>
+              <CardDescription className="text-gray-500">
+                Benchmark vs your agents under current scenario assumptions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[420px]">
+              {history.length > 0 ? (
+                <ClientSimulationChart
+                  points={history}
+                  agents={simulationAgents}
+                />
+              ) : (
+                <div className="h-full rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
+                  Create agents to begin simulation.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       {/* ============================================================ */}
       {/*  SECTION 4 - Activity Feed                                    */}

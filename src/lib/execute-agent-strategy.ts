@@ -20,6 +20,17 @@ type ExecuteAgentStrategyResult = {
     params: Record<string, unknown>;
   }>;
   txHashes: string[];
+  actionResults: Array<{
+    action: {
+      type: string;
+      description: string;
+      params: Record<string, unknown>;
+    };
+    executionTxHash: string | null;
+    attestationTxHash: string | null;
+    status: "success" | "failed";
+    error: string | null;
+  }>;
   attestationHash: string | null;
 } | {
   ok: false;
@@ -94,10 +105,13 @@ export async function executeAgentStrategy(
     await supabase
       .from("execution_logs")
       .update({
-        status: "success",
+        status: result.actionResults.some((row) => row.status === "failed")
+          ? "failed"
+          : "success",
         decision: JSON.parse(
           JSON.stringify({
             actions: result.actions,
+            actionResults: result.actionResults,
             txHashes: result.txHashes,
             trigger,
           })
@@ -107,10 +121,10 @@ export async function executeAgentStrategy(
       })
       .eq("id", logEntry.id);
 
-    const perActionLogs = result.actions.map((action, index) => ({
+    const perActionLogs = result.actionResults.map((row, index) => ({
       agent_id: agent.id,
-      action_type: action.type,
-      description: action.description,
+      action_type: row.action.type,
+      description: row.error ? `${row.action.description} (${row.error})` : row.action.description,
       input_data: JSON.parse(
         JSON.stringify({
           strategy_id: strategy.id,
@@ -120,10 +134,17 @@ export async function executeAgentStrategy(
           triggered_by: triggeredBy,
         })
       ) as Json,
-      decision: JSON.parse(JSON.stringify(action)) as Json,
-      tx_hash: result.txHashes[index] ?? null,
-      attestation_tx_hash: result.txHashes[index] ?? result.attestationHash,
-      status: "success" as const,
+      decision: JSON.parse(
+        JSON.stringify({
+          ...row.action,
+          execution_tx_hash: row.executionTxHash,
+          attestation_tx_hash: row.attestationTxHash,
+          error: row.error,
+        })
+      ) as Json,
+      tx_hash: row.executionTxHash ?? result.txHashes[index] ?? null,
+      attestation_tx_hash: row.attestationTxHash ?? result.attestationHash,
+      status: row.status === "failed" ? ("failed" as const) : ("success" as const),
     }));
 
     if (perActionLogs.length > 0) {
@@ -140,6 +161,7 @@ export async function executeAgentStrategy(
       executionLogId: logEntry.id,
       actions: result.actions,
       txHashes: result.txHashes,
+      actionResults: result.actionResults,
       attestationHash: result.attestationHash,
     };
   } catch (execError) {

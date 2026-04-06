@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 import type { Agent } from "@/types/database";
 
 interface RouteContext {
@@ -9,6 +10,7 @@ interface RouteContext {
 
 export async function POST(_request: NextRequest, context: RouteContext) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -17,12 +19,16 @@ export async function POST(_request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const supabase = createServiceClient();
 
-    const { data: agentData, error: agentError } = await supabase
+    let agentQuery = supabase
       .from("agents")
       .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
+      .eq("id", id);
+
+    if (!demoNoAuth) {
+      agentQuery = agentQuery.eq("user_id", user.id);
+    }
+
+    const { data: agentData, error: agentError } = await agentQuery.single();
     const agent = agentData as Agent | null;
 
     if (agentError || !agent) {
@@ -45,16 +51,19 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: snapshotError.message }, { status: 500 });
     }
 
-    const { data: updated, error: updateError } = await supabase
+    let updateQuery = supabase
       .from("agents")
       .update({
         status: "inactive",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .select()
-      .single();
+      .eq("id", id);
+
+    if (!demoNoAuth) {
+      updateQuery = updateQuery.eq("user_id", user.id);
+    }
+
+    const { data: updated, error: updateError } = await updateQuery.select().single();
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }

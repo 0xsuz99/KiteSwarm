@@ -163,25 +163,15 @@ export default function AgentsPage() {
       </div>
 
       <Card className="bg-white border-gray-200 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-sky-500/10 via-indigo-500/5 to-white">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <CardTitle className="text-gray-900 text-lg">
-                Featured Agent Presets
-              </CardTitle>
-              <CardDescription>
-                Use curated starter agents. Unlock based on your connected wallet KITE
-                balance on Kite testnet.
-              </CardDescription>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-right min-w-[200px]">
-              <p className="text-xs text-gray-400">Connected Wallet KITE</p>
-              <p className="text-sm text-gray-700 mt-1">
-                {walletBalance?.formatted
-                  ? `${Number(walletBalance.formatted).toFixed(4)} KITE`
-                  : "Connect wallet"}
-              </p>
-            </div>
+        <CardHeader className="bg-gradient-to-r from-sky-500/10 via-indigo-500/5 to-white dark:from-slate-800/70 dark:via-slate-900 dark:to-slate-900">
+          <div>
+            <CardTitle className="text-gray-900 text-lg">
+              Featured Agent Presets
+            </CardTitle>
+            <CardDescription>
+              Use curated starter agents. Unlock based on wallet KITE balance on
+              Kite testnet.
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="pt-6 grid grid-cols-1 xl:grid-cols-3 gap-4">

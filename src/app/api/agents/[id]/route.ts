@@ -1,6 +1,7 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -8,6 +9,7 @@ interface RouteContext {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -16,12 +18,16 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const supabase = createServiceClient();
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("agents")
       .select("*, strategies(*)")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
+      .eq("id", id);
+
+    if (!demoNoAuth) {
+      query = query.eq("user_id", user.id);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
       if (error.code === "PGRST116") {
@@ -42,6 +48,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -79,13 +86,16 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const supabase = createServiceClient();
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("agents")
       .update(updateData)
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .select()
-      .single();
+      .eq("id", id);
+
+    if (!demoNoAuth) {
+      query = query.eq("user_id", user.id);
+    }
+
+    const { data, error } = await query.select().single();
 
     if (error) {
       if (error.code === "PGRST116") {
@@ -106,6 +116,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -114,11 +125,16 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const supabase = createServiceClient();
 
-    const { error } = await supabase
+    let query = supabase
       .from("agents")
       .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("id", id);
+
+    if (!demoNoAuth) {
+      query = query.eq("user_id", user.id);
+    }
+
+    const { error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

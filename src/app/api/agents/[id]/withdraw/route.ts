@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 import { createKiteAASdk } from "@/lib/kite-aa";
 import { decryptAgentSignerPrivateKey } from "@/lib/agent-signer";
 
@@ -79,6 +80,7 @@ function resolveTxHash(status: unknown): string | null {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -100,12 +102,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const supabase = createServiceClient();
-    const { data: agent, error: agentError } = await supabase
+
+    let agentQuery = supabase
       .from("agents")
       .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
+      .eq("id", id);
+
+    if (!demoNoAuth) {
+      agentQuery = agentQuery.eq("user_id", user.id);
+    }
+
+    const { data: agent, error: agentError } = await agentQuery.single();
 
     if (agentError || !agent) {
       return NextResponse.json({ error: "Agent not found." }, { status: 404 });

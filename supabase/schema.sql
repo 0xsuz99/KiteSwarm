@@ -120,6 +120,7 @@ CREATE POLICY "Service can insert portfolio snapshots" ON public.portfolio_snaps
 
 -- Enable realtime for execution_logs
 ALTER PUBLICATION supabase_realtime ADD TABLE public.execution_logs;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.portfolio_snapshots;
 
 -- Seed template strategies
 INSERT INTO public.strategies (id, user_id, name, description, type, rules, is_template)

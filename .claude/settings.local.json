@@ -4,7 +4,18 @@
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm)",
       "Bash(npx shadcn@latest init -d)",
       "Bash(npx --legacy-peer-deps shadcn@latest init -d)",
-      "Bash(npx --legacy-peer-deps shadcn@latest init --yes --defaults)"
+      "Bash(npx --legacy-peer-deps shadcn@latest init --yes --defaults)",
+      "Bash(npx --legacy-peer-deps shadcn@latest add card dialog input label select tabs textarea badge separator dropdown-menu avatar sheet progress toast sonner table)",
+      "Bash(for comp:*)",
+      "Bash(do echo:*)",
+      "Bash(npx --legacy-peer-deps shadcn@latest add $comp)",
+      "Bash(done)",
+      "Bash(ls -la src/app/\\\\\\(dashboard\\\\\\)/)",
+      "Bash(wc -l src/app/api/agents/route.ts src/app/api/agents/[id]/route.ts src/app/api/agents/[id]/execute/route.ts src/app/api/strategies/route.ts src/app/api/portfolio/route.ts)",
+      "Bash(ls src/app/\\\\\\(dashboard\\\\\\)/ -R)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(wc -l src/app/\\\\\\(dashboard\\\\\\)/dashboard/page.tsx)"
     ]
   }
 }

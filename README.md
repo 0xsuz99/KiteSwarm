@@ -9,7 +9,9 @@ Users can create AI agents, fund their dedicated vaults, configure strategy and 
 - Functional full-stack app: Next.js + Supabase + Kite integrations
 - Agent creation, funding, activation, auto-execution, logs, and performance UI are live
 - Decision attestations are recorded on-chain
+- Swap/bridge/yield actions execute on-chain through AA when adapter env/config is provided
 - Fast Demo Mode is available for high-frequency cycles in demo sessions
+- No-auth judge demo mode is available (wallet-only flow)
 - Cross-chain execution and real protocol adapters are partially scaffolded and marked in roadmap
 
 ## Core Value Proposition
@@ -17,7 +19,7 @@ Users can create AI agents, fund their dedicated vaults, configure strategy and 
 1. **Autonomous agent lifecycle**: configure once, then agent runs in background.
 2. **Verifiable AI actions**: each cycle is attested on-chain.
 3. **User vault model**: each agent has a separate AA-derived vault address.
-4. **Demo-ready UX**: one dashboard-centric flow, with real-time simulation and live logs.
+4. **Demo-ready UX**: one dashboard-centric flow, with fast autonomous cycles and live logs.
 
 ## High-Level Architecture
 
@@ -48,16 +50,20 @@ flowchart TD
 - Tracked tokens and vault holdings valuation
 - Auto-execution scheduler
 - On-chain decision attestation
+- Adapter-based action execution:
+  - swap via router (`KITE_SWAP_ROUTER_ADDRESS`)
+  - bridge via controller (`KITE_BRIDGE_CONTROLLER_ADDRESS`, `KITE_BRIDGE_ADAPTER_ADDRESS`)
+  - yield deposit/withdraw via ERC-4626 vault (`KITE_YIELD_VAULT_ADDRESS`)
 - Portfolio snapshots and P/L trend chart
 - Activity feed and pagination
 - Fast Demo Mode (faster scheduler cadence)
-- Live economy simulation (UI-side stress test)
+- Wallet-only no-auth demo mode (optional)
 
 ### Planned / Partial
 
-- True cross-chain bridge execution via LayerZero
-- Production-grade swap routing / DEX integrations
-- Lucid/Aave native yield adapters with real deposit/withdraw execution
+- Multi-route DEX quoting (best execution across multiple routers)
+- Bridge adapter auto-discovery and dynamic fee quoting
+- Protocol-specific Lucid/Aave adapters beyond generic vault/controller interfaces
 - Marketplace mechanics (public agents, staking into third-party agents, fee-share)
 
 ## Execution Lifecycle
@@ -103,7 +109,25 @@ When enabled:
 
 This helps you show repeated autonomous cycles quickly in a hackathon demo.
 
-Important: Fast Demo Mode accelerates cadence, but **does not fabricate on-chain profit**.
+Important: Fast Demo Mode runs the same backend execution pipeline at higher cadence and **does not fabricate on-chain profit**.
+
+By default, fast autopilot is enabled (`NEXT_PUBLIC_DEFAULT_FAST_AUTOPILOT=true`) so judges immediately see autonomous activity without setup.
+
+## No-Auth Judge Mode
+
+To skip Supabase email login during demos and let judges use wallet-only flow:
+
+```bash
+DEMO_NO_AUTH=1
+NEXT_PUBLIC_DEMO_NO_AUTH=1
+```
+
+Effects:
+
+- Protected dashboard routes become publicly accessible.
+- API routes use demo actor context instead of user session auth.
+- Wallet connect is still used for funding/withdrawing and on-chain actions.
+- Best for hackathon demos; keep auth enabled for production.
 
 ## Real Profit Expectations
 
@@ -205,6 +229,21 @@ KITE_PRICE_USD=0.01
 AGENT_AUTO_MIN_INTERVAL_SECONDS=90
 AGENT_AUTO_MAX_AGENTS_PER_TICK=6
 NEXT_PUBLIC_AGENT_AUTO_POLL_MS=45000
+NEXT_PUBLIC_DEFAULT_FAST_AUTOPILOT=true
+
+# On-chain action adapters
+KITE_SWAP_ROUTER_ADDRESS=
+KITE_BRIDGE_CONTROLLER_ADDRESS=
+KITE_BRIDGE_ADAPTER_ADDRESS=
+KITE_YIELD_VAULT_ADDRESS=
+
+# Mainnet bridge defaults discovered from on-chain contract metadata/events:
+# KITE_BRIDGE_CONTROLLER_ADDRESS=0x92E2391d0836e10b9e5EAB5d56BfC286Fadec25b
+# KITE_BRIDGE_ADAPTER_ADDRESS=0x5eF37628d45C80740fb6dB7eD9c0a753b4f85263
+
+# Judge/demo convenience (wallet-only, no sign-in)
+DEMO_NO_AUTH=1
+NEXT_PUBLIC_DEMO_NO_AUTH=1
 ```
 
 ## Local Setup
@@ -266,7 +305,7 @@ After deployment, set:
 
 ## Judge Demo Flow
 
-1. Connect wallet and open dashboard.
+1. Open app and connect wallet (no sign-in required in demo mode).
 2. Enable **Fast Demo Mode**.
 3. Create agent (e.g., Yield Optimizer).
 4. Fund vault (KITE + USDT).
@@ -281,7 +320,7 @@ After deployment, set:
 For judges, use this framing:
 
 - "Autonomous orchestration and attested execution loops are production-oriented and live."
-- "Some advanced execution adapters (cross-chain, protocol-native yield/swap routing) are in-progress roadmap components."
+- "Core autonomous loop and attestation are real; some protocol-native adapters (cross-chain, full swap routing, LP/flash-loan legs) remain roadmap components."
 - "Fast Demo Mode is for cadence acceleration during demo time; it does not fake on-chain outcomes."
 
 ## Troubleshooting
@@ -291,11 +330,20 @@ For judges, use this framing:
 - Agent must be `active`.
 - Agent must have strategy and vault funds.
 - Check auto-exec interval and latest execution log status.
+- Ensure action adapter env vars are set for swap/bridge/yield execution.
 
 ### Very large stablecoin valuation
 
 - Usually a decimals mismatch.
-- Withdraw and re-fund with locked common token path.
+- Custom token funding now enforces on-chain decimals detection before transfer.
+- Withdraw and re-fund if legacy incorrect-unit funding was already sent.
+
+### Realtime updates not appearing
+
+- Ensure realtime publication includes `execution_logs` and `portfolio_snapshots`.
+- Run:
+  - `ALTER PUBLICATION supabase_realtime ADD TABLE public.execution_logs;`
+  - `ALTER PUBLICATION supabase_realtime ADD TABLE public.portfolio_snapshots;`
 
 ### No on-chain tx hash for execution
 

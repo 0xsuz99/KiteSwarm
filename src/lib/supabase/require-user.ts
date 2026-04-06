@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { createServerSupabase } from "./server";
+import { demoActorId, isDemoNoAuthMode } from "./demo-mode";
 
 type RequireUserResult =
   | {
@@ -13,6 +14,13 @@ type RequireUserResult =
     };
 
 export async function requireUser(): Promise<RequireUserResult> {
+  if (isDemoNoAuthMode()) {
+    return {
+      user: { id: demoActorId() } as User,
+      unauthorizedResponse: null,
+    };
+  }
+
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.auth.getUser();
 

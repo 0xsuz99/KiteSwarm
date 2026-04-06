@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 import { getAgentEngine } from "@/lib/agent-engine";
 import type { Agent } from "@/types/database";
 
@@ -16,18 +17,19 @@ type AgentRow = {
   updated_at: string;
   description: string | null;
   strategy_id: string | null;
-  user_id: string;
+  user_id: string | null;
 };
 
 type SnapshotRow = {
   agent_id: string;
   total_value_usd: number | null;
-  holdings: unknown;
+  holdings?: unknown;
   snapshot_at: string | null;
 };
 
 export async function GET() {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -36,10 +38,15 @@ export async function GET() {
     const supabase = createServiceClient();
     const engine = getAgentEngine();
 
-    const { data: agents, error: agentsError } = await supabase
+    let agentsQuery = supabase
       .from("agents")
-      .select("*")
-      .eq("user_id", user.id);
+      .select("*");
+
+    if (!demoNoAuth) {
+      agentsQuery = agentsQuery.eq("user_id", user.id);
+    }
+
+    const { data: agents, error: agentsError } = await agentsQuery;
 
     if (agentsError) {
       return NextResponse.json({ error: agentsError.message }, { status: 500 });
@@ -75,6 +82,54 @@ export async function GET() {
     }
 
     const latestSnapshots = Array.from(latestByAgent.values());
+    const activeAgentIds = agentRows
+      .filter((row) => row.status === "active")
+      .map((row) => row.id);
+
+    let seriesByAgent: Record<
+      string,
+      Array<{
+        snapshot_at: string;
+        total_value_usd: number;
+      }>
+    > = {};
+
+    if (activeAgentIds.length > 0) {
+      const { data: historyData, error: historyError } = await supabase
+        .from("portfolio_snapshots")
+        .select("agent_id,total_value_usd,snapshot_at")
+        .in("agent_id", activeAgentIds)
+        .order("snapshot_at", { ascending: true })
+        .limit(1500);
+
+      if (historyError) {
+        return NextResponse.json({ error: historyError.message }, { status: 500 });
+      }
+
+      const historyRows = (historyData ?? []) as SnapshotRow[];
+      const grouped: Record<
+        string,
+        Array<{
+          snapshot_at: string;
+          total_value_usd: number;
+        }>
+      > = {};
+
+      for (const row of historyRows) {
+        if (!row.snapshot_at) {
+          continue;
+        }
+        if (!grouped[row.agent_id]) {
+          grouped[row.agent_id] = [];
+        }
+        grouped[row.agent_id].push({
+          snapshot_at: row.snapshot_at,
+          total_value_usd: Number(row.total_value_usd ?? 0),
+        });
+      }
+
+      seriesByAgent = grouped;
+    }
 
     const agentSummaries = await Promise.all(
       agentRows.map(async (agent) => {
@@ -139,6 +194,7 @@ export async function GET() {
       total_value_usd: totalValueUsd,
       agents: agentSummaries,
       snapshots: latestSnapshots,
+      series_by_agent: seriesByAgent,
     });
   } catch (err) {
     console.error("GET /api/portfolio error:", err);

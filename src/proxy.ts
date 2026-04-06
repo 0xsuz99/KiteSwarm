@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 
 const protectedPaths = ["/dashboard", "/agents", "/strategies", "/activity"];
 
@@ -13,6 +14,10 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request,
   });
+
+  if (isDemoNoAuthMode()) {
+    return response;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

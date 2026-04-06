@@ -6,7 +6,6 @@ import { KiteWalletButton } from "@/components/wallet/kite-wallet-button";
 import { UserMenu } from "@/components/auth/user-menu";
 import { WalletProfileSync } from "@/components/auth/wallet-profile-sync";
 import { AutoExecutor } from "@/components/agents/auto-executor";
-import { DemoModeToggle } from "@/components/agents/demo-mode-toggle";
 
 export default function DashboardLayout({
   children,
@@ -32,7 +31,6 @@ export default function DashboardLayout({
           </Link>
         </div>
         <div className="flex items-center gap-3">
-          <DemoModeToggle />
           <KiteWalletButton />
           <UserMenu />
         </div>

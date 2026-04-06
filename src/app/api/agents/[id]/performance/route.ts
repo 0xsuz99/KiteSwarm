@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/supabase/require-user";
+import { isDemoNoAuthMode } from "@/lib/supabase/demo-mode";
 import { getAgentEngine } from "@/lib/agent-engine";
 import type { Agent } from "@/types/database";
 
@@ -15,6 +16,7 @@ type SnapshotRow = {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const demoNoAuth = isDemoNoAuthMode();
     const { user, unauthorizedResponse } = await requireUser();
     if (!user) {
       return unauthorizedResponse;
@@ -23,12 +25,16 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const supabase = createServiceClient();
 
-    const { data: agentData, error: agentError } = await supabase
+    let agentQuery = supabase
       .from("agents")
       .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
+      .eq("id", id);
+
+    if (!demoNoAuth) {
+      agentQuery = agentQuery.eq("user_id", user.id);
+    }
+
+    const { data: agentData, error: agentError } = await agentQuery.single();
     const agent = agentData as Agent | null;
 
     if (agentError || !agent) {

@@ -3,6 +3,9 @@ export type KiteToken = {
   address: `0x${string}`;
   decimals?: number;
   label?: string;
+  bridgeController?: `0x${string}`;
+  defaultBridgeAdapter?: `0x${string}`;
+  yieldVault?: `0x${string}`;
 };
 
 export const KITE_TESTNET_TOKENS: KiteToken[] = [
@@ -26,6 +29,7 @@ export const KITE_MAINNET_TOKENS: KiteToken[] = [
     address: "0x7aB6f3ed87C42eF0aDb67Ed95090f8bF5240149e",
     decimals: 6,
     label: "USDC (Kite Mainnet)",
+    bridgeController: "0x92E2391d0836e10b9e5EAB5d56BfC286Fadec25b",
   },
 ];
 
